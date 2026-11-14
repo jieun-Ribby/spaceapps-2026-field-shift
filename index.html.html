@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Field Shift - Adapting Farms with NASA Data</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Fira+Sans:wght@700;900&family=Overpass:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --blue-yonder: #2E96F5;
+      --neon-blue: #0960E1;
+      --electric-blue: #0042A6;
+      --deep-blue: #07173F;
+      --rocket-red: #E43700;
+      --martian-red: #8E1100;
+      --neon-yellow: #EAFE07;
+      --white: #FFFFFF;
+      --surface-tint: #F4F7FC;
+      --slate-body: #2D3748;
+      --border-blue: #D0DDF2;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Overpass', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--surface-tint);
+      color: var(--deep-blue);
+      line-height: 1.5;
+      padding-bottom: 64px;
+    }
+    header {
+      background: linear-gradient(135deg, var(--electric-blue) 0%, var(--deep-blue) 100%);
+      color: var(--white);
+      padding: 16px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 3px solid var(--blue-yonder);
+    }
+    .brand-title { display: flex; align-items: center; gap: 12px; }
+    .orbit-icon {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 2.5px solid var(--white); position: relative; flex-shrink: 0;
+    }
+    .orbit-icon::after {
+      content: ""; width: 9px; height: 9px; border-radius: 50%;
+      background: var(--neon-yellow); position: absolute; top: -3px; right: -1px;
+    }
+    header h1 {
+      margin: 0;
+      font-family: 'Fira Sans', sans-serif;
+      font-weight: 900;
+      font-size: 1.38rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    header .subtitle { font-size: 0.84rem; color: #D6E6FF; }
+    .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .region-toggle button {
+      padding: 7px 13px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      background: rgba(7, 23, 63, 0.45);
+      color: var(--white);
+      font-family: 'Overpass', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .region-toggle button.active {
+      background: var(--white);
+      color: var(--deep-blue);
+      border-color: var(--white);
+    }
+    .upload-btn {
+      padding: 7px 14px;
+      border-radius: 6px;
+      background: var(--neon-yellow);
+      color: var(--deep-blue);
+      font-family: 'Overpass', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .story-bar {
+      background: var(--white);
+      border-bottom: 1px solid var(--border-blue);
+      padding: 10px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .steps-list { display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.83rem; font-weight: 700; }
+    .step-chip { display: flex; align-items: center; gap: 6px; color: var(--deep-blue); }
+    .step-num {
+      background: var(--electric-blue); color: var(--white);
+      font-family: 'Fira Code', monospace; font-size: 0.72rem;
+      width: 20px; height: 20px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .scenario-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .scenario-label { font-size: 0.8rem; font-weight: 700; color: var(--electric-blue); }
+    .scen-btn {
+      padding: 5px 11px;
+      border-radius: 999px;
+      border: 1.5px solid var(--border-blue);
+      background: var(--surface-tint);
+      color: var(--deep-blue);
+      font-family: 'Overpass', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .scen-btn.active {
+      background: var(--deep-blue);
+      color: var(--neon-yellow);
+      border-color: var(--deep-blue);
+    }
+    .container {
+      max-width: 1320px;
+      margin: 16px auto;
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: 310px 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 960px) { .container { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--white);
+      border: 1px solid var(--border-blue);
+      border-radius: var(--radius);
+      padding: 15px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(7, 23, 63, 0.04);
+    }
+    .panel h2 {
+      margin: 0 0 10px;
+      font-family: 'Fira Sans', sans-serif;
+      font-weight: 700;
+      font-size: 0.98rem;
+      color: var(--electric-blue);
+      border-bottom: 2px solid #EBF2FC;
+      padding-bottom: 7px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .slider-group { margin-bottom: 11px; }
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: var(--deep-blue);
+      margin-bottom: 3px;
+    }
+    .slider-label span:last-child { font-family: 'Fira Code', monospace; color: var(--neon-blue); }
+    input[type="range"] { width: 100%; accent-color: var(--neon-blue); cursor: pointer; }
+    .constraint-box {
+      background: var(--surface-tint);
+      border: 1px solid var(--border-blue);
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 0.81rem;
+      margin-top: 10px;
+    }
+    .constraint-box select {
+      width: 100%; margin-top: 4px; padding: 6px;
+      border-radius: 4px; border: 1px solid
